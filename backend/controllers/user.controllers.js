@@ -10,6 +10,7 @@ export const createUserController = async (req, res) => {
     try {
         const user = await userService.createUser(req.body);
         const token= await user.generateAuthToken();
+        delete user._doc.password;
         res.status(201).json({ message: "User created successfully", user, token });
     } catch (error) {
         res.status(500).json({ message: error.message });
