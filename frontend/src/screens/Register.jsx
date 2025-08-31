@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom"
 import axios from "../config/axios"
 import { useState } from "react"
-import { UserContext } from "../context/user.context"
+import { UserContext } from "../context/userContext"
 import { useContext } from "react"
 
 const Register = () => {
