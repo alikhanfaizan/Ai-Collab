@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "../config/axios.js";
+import { initializeSocket , receiveMessage , sendMessage } from "../config/socket.js";
+import {UserContext} from '../context/userContext.jsx';
 const Project = () => {
   const location = useLocation();
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
@@ -8,9 +10,16 @@ const Project = () => {
   const [selectedUserId, setSelectedUserId] = useState([]);
   const [users,setUsers] = useState([]);
   const [ project, setProject ] = useState(location.state.project)
+  const {user}=useContext(UserContext);
+  const [message, setMessage] = useState("");
+
 
   useEffect(() => {
-    
+    initializeSocket(project._id);
+
+    receiveMessage('project_message', data => { 
+      console.log(data);
+    })
     axios.get('/users/all').then(res => {
       setUsers(res.data.users);
     }).catch(err => {
@@ -41,6 +50,18 @@ const Project = () => {
 
     // setIsModalOpen(false);
   };
+
+
+   const send = () => {
+        console.log("sending message:", message);
+        sendMessage('project-message', {
+            message,
+            sender: user._id
+        })
+        setMessage(prevMessages => [ ...prevMessages, { sender: user, message } ]) // Update messages state
+        setMessage("")
+
+    }
 
 
 
@@ -96,14 +117,14 @@ const Project = () => {
           </div>
           <div className="inputField w-full flex absolute bottom-0">
             <input
-              // value={message}
-              // onChange={(e) => setMessage(e.target.value)}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               className="p-2 px-4 border-none outline-none flex-grow bg-slate-400"
               type="text"
               placeholder="Enter message"
             />
             <button
-              // onClick={send}
+              onClick={send}
               className=" px-5 bg-slate-950 text-white"
             >
               <i className="ri-send-plane-fill"></i>
