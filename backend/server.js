@@ -1,100 +1,66 @@
-
-import dotenv from 'dotenv/config.js';
-import http from 'http';
-import express from 'express';
-import app from './app.js';
-import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
-import projectModel from './models/project.model.js';
+import dotenv from "dotenv/config.js";
+import http from "http";
+import express from "express";
+import app from "./app.js";
+import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import projectModel from "./models/project.model.js";
 const server = http.createServer(app);
-const io=new Server(server,{
-  cors:{
-    origin:'*'
-  }
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
 });
 
 io.use(async (socket, next) => {
+  try {
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers.authorization?.split(" ")[1];
+    const projectId = socket.handshake.query.projectId;
 
-    try {
-
-        const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(' ')[ 1 ];
-        const projectId = socket.handshake.query.projectId;
-
-        if (!mongoose.Types.ObjectId.isValid(projectId)) {
-            return next(new Error('Invalid projectId'));
-        }
-
-
-        socket.project = await projectModel.findById(projectId);
-
-
-        if (!token) {
-            return next(new Error('Authentication error'))
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        if (!decoded) {
-            return next(new Error('Authentication error'))
-        }
-
-
-        socket.user = decoded;
-
-        next();
-
-    } catch (error) {
-        next(error)
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return next(new Error("Invalid projectId"));
     }
 
-})
+    socket.project = await projectModel.findById(projectId);
 
-io.on('connection',(socket)=>{
-   socket.roomId = socket.project._id.toString()
+    if (!token) {
+      return next(new Error("Authentication error"));
+    }
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    console.log('a user connected');
+    if (!decoded) {
+      return next(new Error("Authentication error"));
+    }
 
+    socket.user = decoded;
 
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
-    socket.join(socket.roomId);
+io.on("connection", socket => {
+  socket.roomId = socket.project._id.toString();
 
+  console.log("a user connected");
 
-  
-  socket.on('project-message', async data => {
+  socket.join(socket.roomId);
 
-        // const message = data.message;
-        console.log(data);
-        // const aiIsPresentInMessage = message.includes('@ai');
-        socket.broadcast.to(socket.roomId).emit('project-message', data)
+  socket.on("project-message", (data) => {
+    console.log(data,"I am server");
+    socket.broadcast.to(socket.roomId).emit("project-message", data);
+  });
 
-        // if (aiIsPresentInMessage) {
-
-
-        //     const prompt = message.replace('@ai', '');
-
-        //     const result = await generateResult(prompt);
-
-
-        //     io.to(socket.roomId).emit('project-message', {
-        //         message: result,
-        //         sender: {
-        //             _id: 'ai',
-        //             email: 'AI'
-        //         }
-        //     })
-
-
-        //     return
-        // }
-
-
-    })
-
-  socket.on('disconnect',()=>{
-    console.log('user disconnected');
-  })}) ; 
+  socket.on("disconnect", () => {
+    console.log("user disconnected");
+    socket.leave(socket.roomId);
+  });
+});
 server.listen(process.env.PORT || 3000, () => {
   console.log(`Server is running on port ${process.env.PORT || 3000}`);
 });
